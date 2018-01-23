@@ -1,6 +1,6 @@
 <html>
   <title> Type Confusion Vulnerability Exploitation </title>
-  <h2><center> HackSysTeam Vulnerable Driver: Type Confusion Vulnerability Exploitation</center></h2>
+  <h2><center> HackSysTeam Windows Kernel Vulnerable Driver: Type Confusion Vulnerability Exploitation</center></h2>
   <style>
     body {
     background-color: white;
@@ -13,7 +13,7 @@ h2 {
 
 p.padding-left {
     font-family: verdana;
-    font-size: 20px;
+    font-size: 16px;
     color: black;
     padding-left: 4cm;
     padding-right: 4cm;
@@ -22,7 +22,7 @@ p.padding-left {
   <body>
    <div><p class="padding-left"> Type confusion bug can be very powerful, with the potential to form the basis of 100% reliable exploits (as per Google Project Zero), more information available in <a href="https://googleprojectzero.blogspot.ae/2015/06/what-is-good-memory-corruption.html">What is good memory corruption</a> </p></div>
     
-    <div><p class ="padding-left">According to <a href="https://cwe.mitre.org/data/definitions/843.html">Common Weakness Enumeration (CWE)</a> "The program allocates or initializes a resource such as a pointer, object, or variable using one type, but it later accesses that resource using a type that is incompatible with the original type. When the program accesses the resource using an incompatible type, this could trigger logical errors because the resource does not have expected properties. In languages without memory safety, such as C and C++, type confusion can lead to out-of-bounds memory access.</p></div>
+    <div><p class ="padding-left">According to <a href="https://cwe.mitre.org/data/definitions/843.html">Common Weakness Enumeration (CWE)</a> The program allocates or initializes a resource such as a pointer, object, or variable using one type, but it later accesses that resource using a type that is incompatible with the original type. When the program accesses the resource using an incompatible type, this could trigger logical errors because the resource does not have expected properties. In languages without memory safety, such as C and C++, type confusion can lead to out-of-bounds memory access.</p></div>
 
 <div><p class="padding-left"> While this weakness is frequently associated with unions when parsing data with many different embedded object types in C, it can be present in any application that can interpret the same variable or memory location in multiple ways.</p></div>
 
@@ -36,8 +36,64 @@ p.padding-left {
     
     <div><p class="padding-left"> As per below code, the <b>#ifdef SECURE</b> block is properly setting 'Callback' member of the structure before passing the pointer to function as parameter whereas <b>#else</b> block does not do so and it leads to vanilla <b>type confusion vulnerability</b><br />
     </a></p></div>
-<div><p class="padding-left">Click <a href="https://github.com/hacksysteam/HackSysExtremeVulnerableDriver/blob/master/Driver/TypeConfusion.c#L139">here</a>to get the source code</p><br />
+<div><p class="padding-left">Click <a href="https://github.com/hacksysteam/HackSysExtremeVulnerableDriver/blob/master/Driver/TypeConfusion.c#L139">here</a> to get the source code</p><br />
   <p class="padding-left"><img  src="https://github.com/hackingportal/hackingportal.github.io/blob/master/Type_Confusion/images/Image.png?raw=true" alt="code"></p></div>
-<div><p class="padding-left"><a href="https://hackingportal.github.io/">Back</a></p></div>
+  
+  <div><p class="padding-left"><b>Device Input and Output Control (IOCTL)</b></p></div>
+   <div><p class="padding-left">The DeviceIoControl function provides a device input and output control (IOCTL) interface through which an application can communicate directly with a device driver. The DeviceIoControl function is a general-purpose interface that can send control codes to a variety of devices. Each control code represents an operation for the driver to perform.<a href="https://msdn.microsoft.com/en-us/library/windows/desktop/aa363219(v=vs.85).aspx">Click here</a> to get more information </p></div>
+   
+   <div><p class="padding-left">Since the driver is open source, you can find IOCTL code in mentioned <a href="   https://github.com/hacksysteam/HackSysExtremeVulnerableDriver/blob/master/Driver/HackSysExtremeVulnerableDriver.h#L65">link</a>, if source code is not available we need to perform reverse engineer on the driver to get the IOCTL code to trigger the bug.</p></div>
+   
+	<div><p class="padding-left">For type confusion vulnerability, we have IOCTL code as per below <br />
+	<p class="padding-left"><img  src="https://github.com/hackingportal/hackingportal.github.io/blob/master/Type_Confusion/images/Image1.png?raw=true" alt="ioctl_code"></p></p></div>
+
+	<div><p class="padding-left"><b>Let's decode IOCTL manually</b></p></div>
+	<div><p class="padding-left"><img  src="https://github.com/hackingportal/hackingportal.github.io/blob/master/Type_Confusion/images/Image2.png?raw=true" alt="manual"></p></div>
+	<div><p class="padding-left">
+	FILE_DEVICE_UNKNOWN = 0x00000022 <br />
+	FILE_ANY_ACCESS     = 0x00000000 <br />
+	METHOD_NEITHER      = 0x00000003 <br />
+	FUNCTION            = 0x808 <br /> <br/>
+	
+	Python code for decode the I/O control codes:  <b> hex((0x00000022 << 16) | (0x00000000 << 14) | (0x808 << 2) | 0x00000003) </b> <br /> <br />
+	<img  src="https://github.com/hackingportal/hackingportal.github.io/blob/master/Type_Confusion/images/Image3.png?raw=true" alt="calulate"> <br /> <br/>
+	<b>IOCTL code action in IDA Pro:</b> <br/><br/>
+	<img  src="https://github.com/hackingportal/hackingportal.github.io/blob/master/Type_Confusion/images/Image4.png?raw=true" alt="ida"> <br /> <br/>
+	
+	Exploitation is very simple, lets jump to write a python code to trigger the bug: <br/> <br/>
+	Download the below source code from <a href = "https://github.com/hackingportal/Type-confusion-vulnerability/blob/master/Type_Confusion_01.py"> here</a> <br/> <br/>
+	<img  src="https://github.com/hackingportal/hackingportal.github.io/blob/master/Type_Confusion/images/Type_confusion_01.png?raw=true" alt="code1"> <br /> <br/>
+	Vulnerability trigger as shown below: <br/> <br/>
+	<img  src="https://github.com/hackingportal/hackingportal.github.io/blob/master/Type_Confusion/images/Image5.png?raw=true" alt="trigger"> <br /> <br/>
+	<img  src="https://github.com/hackingportal/hackingportal.github.io/blob/master/Type_Confusion/images/Image6.png?raw=true" alt="trigger"> <br /> <br/>
+	If we put Shellcode Address in ObjectType, it will execute perfectly. Below is a python code: <br /> <br/>
+	
+	Token stealing payload was taken from: <a href=" https://github.com/FuzzySecurity/HackSysTeam-PSKernelPwn/blob/master/Kernel_TypeConfusion.ps1"> here</a> <br /> <br/>
+	
+	Download the below source code from <a href = "https://github.com/hackingportal/Type-confusion-vulnerability/blob/master/Type_Confusion_02.py"> here</a> <br /> <br />
+	<img  src="https://github.com/hackingportal/hackingportal.github.io/blob/master/Type_Confusion/images/Type_confusion_02.png?raw=true" alt="trigger1"> 
+	<img  src="https://github.com/hackingportal/hackingportal.github.io/blob/master/Type_Confusion/images/Type_confusion_03.png?raw=true" alt="trigger2"> <br /> <br />
+	
+	Execute, the above code and you will see the magic: <br/><br/>
+	<img  src="https://github.com/hackingportal/hackingportal.github.io/blob/master/Type_Confusion/images/Image7.png?raw=true" alt="trigger"> <br /> <br/>
+	Code executed in system level privilege as shown in image
+	
+	</p></div>
+  
+<div><p class="padding-left"><a href="https://hackingportal.github.io/">Go Back</a></p></div>
+
+<div><p class="padding-left"><b>Reference:</b> <br/><br/>
+ https://googleprojectzero.blogspot.ae/2015/06/what-is-good-memory-corruption.html. <br/>
+ https://cwe.mitre.org/data/definitions/843.html<br/>
+ http://howto.hackallthethings.com/2016/07/secure-c-103.html.<br/>
+ https://github.com/hacksysteam/HackSysExtremeVulnerableDriver<br/>
+ https://hshrzd.wordpress.com/2017/05/28/starting-with-windows-kernel-exploitation-part-1-setting-up-the-lab/<br/>
+ https://hshrzd.wordpress.com/2017/06/05/starting-with-windows-kernel-exploitation-part-2/<br/>
+ https://msdn.microsoft.com/en-us/library/windows/desktop/aa363219(v=vs.85).aspx<br/>
+ https://github.com/FuzzySecurity/HackSysTeam-PSKernelPwn/blob/master/Kernel_TypeConfusion.ps1<br/>
+ https://osandamalith.com/2017/04/05/windows-kernel-exploitation-stack-overflow/<br/>
+ https://nebelwelt.net/publications/files/16CCS2.pdf <br/>
+ 
+</p></div>
   </body>
   </html>
